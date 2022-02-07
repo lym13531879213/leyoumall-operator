@@ -351,11 +351,12 @@ export default {
       this.getPage()
     },
     confirmAdd() {
-      console.log(this.addForm)
       this.$refs.addForm.validate((valid) => {
         if (valid) {
           attrAPI.addAttrGroup(this.addForm).then(res => {
             this.addDialogVisible = false
+            this.$refs.addForm.resetFields()
+            this.addForm.cateIds = []
             Message({
               message: '新增成功',
               type: 'success',
