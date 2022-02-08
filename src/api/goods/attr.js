@@ -93,3 +93,26 @@ export function switchStatus(attrId, status, params) {
   })
 }
 
+export function relateAttribute(attrGroupId, attrIds) {
+  return request({
+    url: `/goods/attrGroup/${attrGroupId}/relateAttribute`,
+    method: 'post',
+    data: attrIds
+  })
+}
+
+export function getRelation(attrGroupId) {
+  return request({
+    url: `/goods/attrGroup/${attrGroupId}/relateAttribute`,
+    method: 'get'
+  })
+}
+
+export function deleteRelation(ids) {
+  return request({
+    url: `/goods/attrGroup/relateAttribute`,
+    method: 'delete',
+    data: ids
+  })
+}
+

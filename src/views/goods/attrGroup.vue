@@ -55,6 +55,153 @@
       </span>
     </el-dialog>
 
+    <!-- 属性 -->
+    <el-dialog
+      title="选择属性"
+      :visible.sync="addRelationDialogVisiable"
+      width="35%"
+      center
+    >
+      <el-form ref="attrForm" :model="attrForm" :inline="true" class="demo-form-inline">
+        <el-form-item label-width="80px">
+          <el-input v-model="attrForm.attrName" placeholder="属性名称" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="submitAttrForm">查询</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table
+        v-loading="attrListLoading"
+        height="250"
+        :data="attrList"
+        element-loading-text="Loading"
+        border
+        fit
+        highlight-current-row
+        stripe
+        style="margin-bottom:15px"
+        @selection-change="handleAttrSelectionChange"
+      >
+        <el-table-column
+          type="selection"
+          width="55"
+          align="center"
+        />
+
+        <el-table-column align="center" label="属性ID">
+          <template slot-scope="scope">
+            <span>{{ scope.row.attrId }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column align="center" label="属性名称">
+          <template slot-scope="scope">
+            <span>{{ scope.row.attrName }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column align="center" label="值类型">
+          <template slot-scope="scope">
+            <span>{{ scope.row.valueType }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column align="center" label="可选值列表">
+          <template slot-scope="scope">
+            <span>{{ scope.row.valueSelect }}</span>
+          </template>
+        </el-table-column>
+
+      </el-table>
+      <el-pagination
+        background
+        layout="total, sizes, prev, pager, next, jumper"
+        :total="attrTotal"
+        :page-sizes="[10, 15, 20, 25]"
+        :page-size="10"
+        style="display:inline-block"
+        :current-page="attrPageNo"
+        @size-change="attrhandleSizeChange"
+        @current-change="attrhandlePageNoChange"
+      />
+      <el-button
+        size="mini"
+        type="success"
+        style="float:right;margin-right:20px"
+        @click="confirmAddRelation"
+      >确定</el-button>
+    </el-dialog>
+
+    <!-- 关联属性dialog -->
+    <el-dialog
+      title="关联属性"
+      :visible.sync="relateDialogVisible"
+      width="40%"
+      center
+    >
+
+      <el-button
+        size="mini"
+        type="success"
+        @click="addAttrRelation"
+      >添加关联</el-button>
+      <el-button
+        size="mini"
+        type="danger"
+        @click="deleteRelation"
+      >删除关联</el-button>
+
+      <el-table
+        v-loading="relationLoading"
+        :data="relation"
+        element-loading-text="Loading"
+        border
+        fit
+        height="400"
+        highlight-current-row
+        stripe
+        style="margin-top:15px !important;"
+        @selection-change="handleRelationSelectionChange"
+      >
+        <el-table-column
+          type="selection"
+          width="55"
+          align="center"
+        />
+        <el-table-column align="center" label="编号" width="60">
+          <template slot-scope="scope">
+            {{ scope.$index+1 }}
+          </template>
+        </el-table-column>
+        <el-table-column align="center" label="关联ID">
+          <template slot-scope="scope">
+            <span>{{ scope.row.id }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column align="center" label="规格参数ID">
+          <template slot-scope="scope">
+            <span>{{ scope.row.attrId }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column align="center" label="规格参数名称">
+          <template slot-scope="scope">
+            <span>{{ scope.row.attrName }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column align="center" label="属性分组ID">
+          <template slot-scope="scope">
+            <span>{{ scope.row.attrGroupId }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column align="center" label="属性分组名称">
+          <template slot-scope="scope">
+            <span>{{ scope.row.attrGroupName }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
     <el-form ref="form" :model="form" :inline="true" class="demo-form-inline">
       <el-form-item label-width="80px">
         <el-input v-model="form.groupId" placeholder="属性分组ID" />
@@ -131,6 +278,11 @@
 
       <el-table-column label="操作" align="center">
         <template slot-scope="scope">
+          <el-button
+            size="mini"
+            type="text"
+            @click="relateAttr(scope.row)"
+          >关联属性</el-button>
           <el-button
             size="mini"
             type="text"
@@ -223,8 +375,25 @@ export default {
           { required: true, message: '请输入排序', trigger: 'blur' },
           { type: 'number', message: '排序必须为数字' }
         ]
-      }
-
+      },
+      relationLoading: false,
+      relation: [],
+      relateDialogVisible: false,
+      addRelationDialogVisiable: false,
+      deleteRelationIds: [],
+      addRelationAttrIds: [],
+      addRelation: {
+        attrGroupId: null,
+        attrIds: null
+      },
+      attrForm: {
+        attrName: ''
+      },
+      attrListLoading: false,
+      attrTotal: null,
+      attrList: [],
+      attrPageNo: 1,
+      attrPageSize: 10
     }
   },
   created() {
@@ -232,6 +401,54 @@ export default {
     this.getPage()
   },
   methods: {
+    getAttrPage() {
+      this.attrListLoading = true
+      const params = {
+        pageNo: this.attrPageNo,
+        pageSize: this.attrPageSize,
+        attrType: 1,
+        attrName: this.attrForm.attrName
+      }
+      attrAPI.getAttrPage(params).then(response => {
+        const data = response.list
+        data.map(item => {
+          item.valueSelect = item.valueSelect === '' ? '' : JSON.parse(item.valueSelect).join()
+          item.valueType = item.valueType === 0 ? '单值' : '多值'
+          return item
+        })
+        this.attrList = data
+        this.attrTotal = response.total
+        this.attrListLoading = false
+      }, (error) => {
+        console.log(error)
+      })
+    },
+    attrhandleSizeChange(value) {
+      this.attrPageNo = value
+      this.getAttrPage()
+    },
+    attrhandlePageNoChange(value) {
+      this.attrPageNo = value
+      this.getAttrPage()
+    },
+    submitAttrForm() {
+      this.attrPageNo = 1
+      this.getAttrPage()
+    },
+    handleAttrSelectionChange(val) {
+      const ids = []
+      val.forEach(item => {
+        ids.push(item.attrId)
+      })
+      this.addRelation.attrIds = ids
+    },
+    handleRelationSelectionChange(val) {
+      const ids = []
+      val.forEach(item => {
+        ids.push(item.id)
+      })
+      this.deleteRelationIds = ids
+    },
     getPage() {
       this.listLoading = true
       const params = {
@@ -277,7 +494,7 @@ export default {
           break
         case 2:
           this.modifyForm.catId = val[val.length - 1]
-          this.modifyForm.cateIds = JSON.stringify(val)
+          this.modifyForm.cateIds = val
           break
         default:
           break
@@ -378,6 +595,7 @@ export default {
     confirmModify() {
       this.$refs.modifyForm.validate(valid => {
         if (valid) {
+          this.modifyForm.cateIds = JSON.stringify(this.modifyForm.cateIds)
           attrAPI.modifyAttrGroup(this.modifyForm).then(res => {
             Message({
               message: '修改成功',
@@ -406,6 +624,65 @@ export default {
         }
         return null
       })
+    },
+    relateAttr(row) {
+      this.relateDialogVisible = true
+      this.relationLoading = true
+      this.addRelation.attrGroupId = row.attrGroupId
+      attrAPI.getRelation(row.attrGroupId).then(res => {
+        this.relation = res
+        this.relationLoading = false
+      }).catch(err => {
+        console.log(err)
+      })
+    },
+    confirmAddRelation() {
+      console.log(this.addRelation)
+      attrAPI.relateAttribute(this.addRelation.attrGroupId, this.addRelation.attrIds).then(res => {
+        Message({
+          type: 'success',
+          message: '关联成功',
+          duration: 2 * 1000
+        })
+        this.addRelationDialogVisiable = false
+        attrAPI.getRelation(this.addRelation.attrGroupId).then(res => {
+          this.relation = res
+        }).catch(err => {
+          console.log(err)
+        })
+      }).catch(err => {
+        console.log(err)
+      })
+    },
+    deleteRelation() {
+      this.$confirm('此操作将会删除关联，是否继续?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(res => {
+        attrAPI.deleteRelation(this.deleteRelationIds).then(res => {
+          Message({
+            message: '删除成功',
+            type: 'success',
+            duration: 3 * 1000
+          })
+          attrAPI.getRelation(this.addRelation.attrGroupId).then(res => {
+            this.relation = res
+          }).catch(err => {
+            console.log(err)
+          })
+        })
+      }).catch(() => {
+        Message({
+          type: 'info',
+          duration: 2 * 1000,
+          message: '已取消删除'
+        })
+      })
+    },
+    addAttrRelation() {
+      this.addRelationDialogVisiable = true
+      this.getAttrPage()
     }
   }
 }

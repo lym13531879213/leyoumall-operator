@@ -389,7 +389,6 @@ export default {
           item.valueType = item.valueType === 0 ? '单值' : '多值'
           item.createTime = moment(item.createTime).format('YYYY-MM-DD HH:mm:ss')
           item.updateTime = moment(item.updateTime).format('YYYY-MM-DD HH:mm:ss')
-          item.catLevel = item.catLevel + '级'
           return item
         })
         this.list = data
